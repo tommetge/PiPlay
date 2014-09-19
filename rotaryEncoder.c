@@ -7,13 +7,40 @@
 #define  RoAPin    0
 #define  RoBPin    1
 
-static volatile int globalCounter = 0 ;
+#define PinA 0
+#define PinB 1
 
 unsigned char flag;
 unsigned char Last_RoB_Status;
 unsigned char Current_RoB_Status;
 
-void rotaryDeal(void)
+void readPins(int *lastStateA, int *lastStateB)
+{
+  int stateA = digitalRead(PinA);
+  int stateB = digitalRead(PinB);
+
+  if (*lastStateA != stateA) {
+    printf("State A %d -> %d\n", *lastStateA, stateA);
+  }
+  if (*lastStateB != stateB) {
+    printf("State B %d -> %d\n", *lastStateB, stateB);
+  }
+
+  *lastStateA = stateA;
+  *lastStateB = stateB;
+}
+
+void readRun()
+{
+  int lastStateA = 0;
+  int lastStateB = 0;
+
+  while (1) {
+    readPins(&lastStateA, &lastStateB);
+  }
+}
+
+int rotaryDeal(int lastCount)
 {
     Last_RoB_Status = digitalRead(RoBPin);
 
@@ -25,28 +52,40 @@ void rotaryDeal(void)
     if(flag == 1){
         flag = 0;
         if((Last_RoB_Status == 0)&&(Current_RoB_Status == 1)){
-            globalCounter ++;
+            lastCount++;
         }
         if((Last_RoB_Status == 1)&&(Current_RoB_Status == 0)){
-            globalCounter --;
+            lastCount--;
         }
     }
+
+    return lastCount;
+}
+
+void rotaryRun()
+{
+  int lastCount = 0;
+
+  while(1){
+    int thisCount = rotaryDeal(lastCount);
+    if (thisCount != lastCount) {
+      printf("count: %d\n", thisCount);
+    }
+    lastCount = thisCount;
+  }
 }
 
 int main(void)
 {
-    if(wiringPiSetup() < 0){
-        fprintf(stderr, "Unable to setup wiringPi:%s\n",strerror(errno));
-        return 1;
-    }
+  if(wiringPiSetup() < 0) {
+    fprintf(stderr, "Unable to setup wiringPi:%s\n",strerror(errno));
+    return 1;
+  }
 
-    pinMode(RoAPin, INPUT);
-    pinMode(RoBPin, INPUT);
+  pinMode(RoAPin, INPUT);
+  pinMode(RoBPin, INPUT);
 
-    while(1){
-        rotaryDeal();
-        printf("globalCounter : %d\n",globalCounter);
-    }
+  rotaryRun();
 
-    return 0;
+  return 0;
 }
